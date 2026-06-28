@@ -33,6 +33,20 @@ node report.js                 # raw.json -> japan_hostel_recommendations.md
   which `scrape.js` uses automatically when present (no `playwright install`
   needed). On your own machine run `npx playwright install chromium` instead.
 
+### Group-room search (3 people, one booking)
+
+`group_scrape.js` + `group_report.js` produce **`group_room_recommendations.md`**:
+rooms that fit 3 people sized 3–5, at ≤ a per-night group budget. Booking-only
+(its detail/search data reliably labels private-room capacity; Hostelworld and
+dorm bed-counts are not reliably machine-readable). Output is split into Tier A
+(verified 3–5 private rooms / stated small dorms) and Tier B (3 dorm beds where
+Booking doesn't publish the dorm size).
+
+```bash
+node group_scrape.js          # all three cities -> output/group.json
+node group_report.js          # -> group_room_recommendations.md
+```
+
 ### How it works
 - `scrape.js` drives Chromium through booking.com (`ht_id=203` = Hostel property
   type, JPY currency, exact dates) and hostelworld.com (city page, JPY cookie),
