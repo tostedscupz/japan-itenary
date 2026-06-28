@@ -4,37 +4,45 @@ Goal: use Playwright to scrape **hostelworld.com** and **booking.com** for hoste
 options in three Japanese cities, for specific date ranges, and produce a ranked
 comparison report per city in `japan_hostel_recommendations.md`.
 
-## ⚠️ Status: blocked on network access (action needed from you)
+## Status: ✅ completed — see `japan_hostel_recommendations.md`
 
-This repo was set up in a Claude Code **web** environment whose network policy
-(**Trusted**) does **not** allow `hostelworld.com` or `booking.com`. Every request
-to those hosts is rejected at the egress proxy with a `403 CONNECT` (a policy
-denial, not bot detection / CAPTCHA). Playwright and Chromium are ready; the only
-missing piece is outbound access to the two booking sites.
+The scrape ran successfully against live booking.com and hostelworld.com for all
+three cities. The final ranked report is **`japan_hostel_recommendations.md`**.
 
-### How to unblock (one-time, ~1 minute)
+### Reproduce / refresh the data
 
-1. Go to **claude.ai/code** and click the **cloud icon ☁️** (it shows the current
-   environment's name) near where you start a task.
-2. Hover the environment name and click the **gear / settings ⚙️** icon.
-3. Find **Network access** and change it from **Trusted** to either:
-   - **Full** — allows any website (simplest), or
-   - **Custom** — then in **Allowed domains** add (one per line):
-     ```
-     *.hostelworld.com
-     hostelworld.com
-     *.hwstatic.com
-     *.booking.com
-     booking.com
-     *.bstatic.com
-     ```
-     and tick **"Also include default list of common package managers"** so npm /
-     Playwright installs still work.
-4. **Save**, then **start a fresh task** in this same environment (the policy is
-   locked in when a session starts, so the change applies to new sessions). Tell
-   Claude: *"network's open, run the hostel scrape."*
+```bash
+npm install
+node scrape.js                 # all three cities -> output/raw.json
+node report.js                 # raw.json -> japan_hostel_recommendations.md
+# optional: node scrape.js tokyo   (one city)
+# optional: node reenrich.js       (retry only geolocation on existing raw.json)
+```
 
-Docs: https://code.claude.com/docs/en/claude-code-on-the-web#network-access
+### Notes on running in the Claude Code web sandbox
+
+- **Network policy:** the two booking sites must be allowed by the environment's
+  egress policy. Set **Network access** to **Full**, or **Custom** with
+  `*.hostelworld.com`, `*.booking.com` (plus `*.hwstatic.com`, `*.bstatic.com`)
+  and "include default package managers". Docs:
+  https://code.claude.com/docs/en/claude-code-on-the-web#network-access
+- **Chromium TLS:** the sandbox egress proxy drops Chromium's TLS 1.3 ClientHello,
+  so `scrape.js` launches with `--ssl-version-max=tls1.2` (no verification is
+  disabled). This flag is harmless on a normal machine.
+- **Browser binary:** the sandbox ships Chromium at `/opt/pw-browsers/chromium`,
+  which `scrape.js` uses automatically when present (no `playwright install`
+  needed). On your own machine run `npx playwright install chromium` instead.
+
+### How it works
+- `scrape.js` drives Chromium through booking.com (`ht_id=203` = Hostel property
+  type, JPY currency, exact dates) and hostelworld.com (city page, JPY cookie),
+  pulling name, per-night price, review score/count, room/bed info and the direct
+  booking link. Exact coordinates are read from each site's embedded page JSON.
+- Budget is filtered at a live INR→JPY rate (open.er-api.com). Distance/walk-time
+  to the reference hotel and the nearest rail/subway station are computed from the
+  coordinates via OpenStreetMap (Nominatim fallback + Overpass), then candidates
+  are ranked by distance → transit → review score/count → dorm size.
+- `report.js` renders the per-city tables, top-3 picks and budget exclusions.
 
 ## Search criteria
 
