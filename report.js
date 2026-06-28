@@ -25,12 +25,22 @@ function bedsCell(h) {
   if (h.isDorm) return 'Dorm (size n/a in listing)';
   return h.roomType || '—';
 }
-function distCell(h) {
-  if (h.refKm != null) return `${h.refKm.toFixed(1)} km · ~${h.refWalk} min walk`;
-  if (h.geoWarn) return '_location unverified_';
-  return '—';
+// Rough door-to-door metro estimate. The three reference hotels all sit beside a
+// major station (Iidabashi/Korakuen, Kyoto Stn, Higobashi), so egress is short.
+// est = walk to hostel's station + ride(~30 km/h) + wait & egress buffer.
+function metroEst(h) {
+  if (h.refKm == null) return null;
+  const access = h.station ? h.station.walk : 5;
+  const ride = Math.max(2, Math.round(h.refKm / 0.5));
+  return access + ride + 9;
 }
-function stnCell(h) { return h.station ? `${h.station.name} · ~${h.station.walk} min` : '—'; }
+function distCell(h) {
+  if (h.refKm == null) return h.geoWarn ? '_location unverified_' : '—';
+  const walk = `🚶 ~${h.refWalk} min`;
+  if (h.refKm <= 1.5) return `${h.refKm.toFixed(1)} km · ${walk} *(walkable)*`;
+  return `${h.refKm.toFixed(1)} km · ${walk} / 🚇 ~${metroEst(h)} min`;
+}
+function stnCell(h) { return h.station ? `${h.station.name} · 🚶 ~${h.station.walk} min` : '—'; }
 function revCell(h) {
   if (h.reviews == null) return '—';
   return h.reviews < 20 ? `${h.reviews} ⚠️ limited` : h.reviews.toLocaleString();
@@ -43,11 +53,11 @@ function linkCell(h) {
 function rationale(h) {
   const bits = [];
   if (h.refKm != null) {
-    if (h.refKm < 2) bits.push(`Just ${h.refKm.toFixed(1)} km from ${''}the reference hotel (~${h.refWalk} min walk)`);
-    else if (h.refKm < 4) bits.push(`A close ${h.refKm.toFixed(1)} km from the reference hotel (~${h.refWalk} min walk, a few minutes by metro)`);
-    else bits.push(`${h.refKm.toFixed(1)} km from the reference hotel — a short metro ride rather than a walk`);
+    if (h.refKm <= 1.5) bits.push(`Just ${h.refKm.toFixed(1)} km from the reference hotel — an easy ~${h.refWalk} min walk, no metro needed`);
+    else if (h.refKm < 3) bits.push(`A close ${h.refKm.toFixed(1)} km from the reference hotel: walkable in ~${h.refWalk} min, or roughly ~${metroEst(h)} min door-to-door by metro`);
+    else bits.push(`${h.refKm.toFixed(1)} km from the reference hotel — best as a ~${metroEst(h)} min metro hop rather than the ~${h.refWalk} min walk`);
   }
-  if (h.station) bits.push(`nearest station ${h.station.name} is ~${h.station.walk} min away`);
+  if (h.station) bits.push(`its nearest metro, ${h.station.name}, is only ~${h.station.walk} min on foot`);
   let q = '';
   if (h.score != null) {
     const lab = h.score >= 9.3 ? 'an outstanding' : h.score >= 9 ? 'a superb' : h.score >= 8.5 ? 'an excellent' : h.score >= 8 ? 'a strong' : 'a fair';
@@ -81,8 +91,8 @@ for (const key of ['tokyo', 'kyoto', 'osaka']) {
   const rankedAll = (c.within || []).filter(h => h.priceJPY <= budgetJPY);
   const ranked = rankedAll.slice(0, 10);
   out.push(`_Top ${ranked.length} of ${rankedAll.length} within-budget hostels, ranked by distance → transit → reviews → dorm size._\n`);
-  out.push('| # | Hostel | Site | Price/night (JPY / INR) | Room type & beds | Dist. from ref hotel | Nearest station (walk) | Score | Reviews | Link |');
-  out.push('|--:|--------|:----:|-------------------------|------------------|----------------------|------------------------|:-----:|--------:|------|');
+  out.push('| # | Hostel | Site | Price/night (JPY / INR) | Room type & beds | Reach ref hotel (walk / metro) | Nearest metro (walk from hostel) | Score | Reviews | Link |');
+  out.push('|--:|--------|:----:|-------------------------|------------------|--------------------------------|----------------------------------|:-----:|--------:|------|');
   ranked.forEach((h, i) => {
     out.push(`| ${i + 1} | **${h.name}** | ${h.site} | ${yen(h.priceJPY)} / ${rup(inr(h.priceJPY))} | ${bedsCell(h)} | ${distCell(h)} | ${stnCell(h)} | ${h.score ?? '—'} | ${revCell(h)} | ${linkCell(h)} |`);
   });
@@ -108,6 +118,7 @@ for (const key of ['tokyo', 'kyoto', 'osaka']) {
 
 out.push('## Notes & caveats');
 out.push('- **Distances are straight-line geodesic estimates**, not door-to-door walking routes; actual walking time will be a little longer. Use them for relative comparison, not exact navigation.');
+out.push('- **Walk vs metro:** hostels within ~1.5 km are marked *(walkable)*. For farther ones the 🚇 figure is a **rough door-to-door metro estimate** (walk to the hostel\'s station + ride at ~30 km/h + a wait/exit buffer; the reference hotels all sit beside a major station). It is not a routed transit time and ignores transfers/line availability — treat it as a ballpark.');
 out.push('- **Booking.com bed counts** reflect the single recommended unit in search results. A property listed with an 8-bed dorm may also sell 4-bed dorms — check the property page if small-dorm size is a dealbreaker.');
 out.push('- **Hostelworld** lists a "from" nightly dorm price; the cheapest dorm may be a larger room than you want. Bed count wasn\'t available at the listing level.');
 out.push('- **Prices are live at scrape time** and move with demand; re-check before booking. INR figures use the live rate noted at the top.');
