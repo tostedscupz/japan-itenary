@@ -78,7 +78,9 @@ for (const key of ['tokyo', 'kyoto', 'osaka']) {
   out.push(`## ${m.name} — ${m.dates} (${m.nights} nights)`);
   out.push(`**Reference hotel:** ${m.ref}  ·  **Budget:** ≤ ${rup(BUDGET_INR)}/night (≈ ${yen(budgetJPY)})\n`);
 
-  const ranked = (c.within || []).filter(h => h.priceJPY <= budgetJPY);
+  const rankedAll = (c.within || []).filter(h => h.priceJPY <= budgetJPY);
+  const ranked = rankedAll.slice(0, 10);
+  out.push(`_Top ${ranked.length} of ${rankedAll.length} within-budget hostels, ranked by distance → transit → reviews → dorm size._\n`);
   out.push('| # | Hostel | Site | Price/night (JPY / INR) | Room type & beds | Dist. from ref hotel | Nearest station (walk) | Score | Reviews | Link |');
   out.push('|--:|--------|:----:|-------------------------|------------------|----------------------|------------------------|:-----:|--------:|------|');
   ranked.forEach((h, i) => {
