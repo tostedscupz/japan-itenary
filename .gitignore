@@ -1,0 +1,19 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+.cache/
+
+# Scraper run artifacts
+/output/
+*.har
+screenshots/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

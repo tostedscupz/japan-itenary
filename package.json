@@ -1,0 +1,21 @@
+{
+  "name": "japan-itenary",
+  "version": "1.0.0",
+  "description": "Playwright-based hostel research for a Japan trip (Tokyo, Kyoto, Osaka)",
+  "main": "scrape.js",
+  "type": "commonjs",
+  "scripts": {
+    "scrape": "node scrape.js"
+  },
+  "keywords": [
+    "playwright",
+    "hostel",
+    "japan",
+    "travel"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}
