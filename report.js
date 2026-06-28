@@ -28,17 +28,18 @@ function bedsCell(h) {
 // Rough door-to-door metro estimate. The three reference hotels all sit beside a
 // major station (Iidabashi/Korakuen, Kyoto Stn, Higobashi), so egress is short.
 // est = walk to hostel's station + ride(~30 km/h) + wait & egress buffer.
-function metroEst(h) {
+function metroEst(h, refStation) {
   if (h.refKm == null) return null;
-  const access = h.station ? h.station.walk : 5;
-  const ride = Math.max(2, Math.round(h.refKm / 0.5));
-  return access + ride + 9;
+  const access = h.station ? h.station.walk : 5;          // walk to hostel's station
+  const ride = Math.max(2, Math.round(h.refKm / 0.5));     // ~30 km/h
+  const egress = refStation ? refStation.walk : 4;         // walk from friends' station to their hotel
+  return access + ride + 5 + egress;                       // +5 wait buffer
 }
-function distCell(h) {
+function distCell(h, refStation) {
   if (h.refKm == null) return h.geoWarn ? '_location unverified_' : '—';
   const walk = `🚶 ~${h.refWalk} min`;
   if (h.refKm <= 1.5) return `${h.refKm.toFixed(1)} km · ${walk} *(walkable)*`;
-  return `${h.refKm.toFixed(1)} km · ${walk} / 🚇 ~${metroEst(h)} min`;
+  return `${h.refKm.toFixed(1)} km · ${walk} / 🚇 ~${metroEst(h, refStation)} min`;
 }
 function stnCell(h) { return h.station ? `${h.station.name} · 🚶 ~${h.station.walk} min` : '—'; }
 function revCell(h) {
@@ -50,12 +51,12 @@ function linkCell(h) {
   return (h.href ? `[Book](${h.href})` : '—') + alt;
 }
 
-function rationale(h) {
+function rationale(h, refStation) {
   const bits = [];
   if (h.refKm != null) {
-    if (h.refKm <= 1.5) bits.push(`Just ${h.refKm.toFixed(1)} km from the reference hotel — an easy ~${h.refWalk} min walk, no metro needed`);
-    else if (h.refKm < 3) bits.push(`A close ${h.refKm.toFixed(1)} km from the reference hotel: walkable in ~${h.refWalk} min, or roughly ~${metroEst(h)} min door-to-door by metro`);
-    else bits.push(`${h.refKm.toFixed(1)} km from the reference hotel — best as a ~${metroEst(h)} min metro hop rather than the ~${h.refWalk} min walk`);
+    if (h.refKm <= 1.5) bits.push(`Just ${h.refKm.toFixed(1)} km from your friends' hotel — an easy ~${h.refWalk} min walk, no metro needed`);
+    else if (h.refKm < 3) bits.push(`A close ${h.refKm.toFixed(1)} km from your friends' hotel: walkable in ~${h.refWalk} min, or roughly ~${metroEst(h, refStation)} min door-to-door by metro`);
+    else bits.push(`${h.refKm.toFixed(1)} km from your friends' hotel — best as a ~${metroEst(h, refStation)} min metro hop rather than the ~${h.refWalk} min walk`);
   }
   if (h.station) bits.push(`its nearest metro, ${h.station.name}, is only ~${h.station.walk} min on foot`);
   let q = '';
@@ -85,22 +86,26 @@ out.push('---\n');
 for (const key of ['tokyo', 'kyoto', 'osaka']) {
   const c = raw.cities[key]; const m = CITY_META[key];
   if (!c) continue;
+  const rs = c.refStation;
   out.push(`## ${m.name} — ${m.dates} (${m.nights} nights)`);
-  out.push(`**Reference hotel:** ${m.ref}  ·  **Budget:** ≤ ${rup(BUDGET_INR)}/night (≈ ${yen(budgetJPY)})\n`);
+  out.push(`**Friends' hotel:** ${m.ref}  ·  **Budget:** ≤ ${rup(BUDGET_INR)}/night (≈ ${yen(budgetJPY)})`);
+  if (rs) out.push(`**Friends' nearest station:** ${rs.name} (~${rs.walk} min walk from their hotel) — this is the far end of the 🚇 metro estimates below.\n`);
+  else out.push('');
 
   const rankedAll = (c.within || []).filter(h => h.priceJPY <= budgetJPY);
   const ranked = rankedAll.slice(0, 10);
   out.push(`_Top ${ranked.length} of ${rankedAll.length} within-budget hostels, ranked by distance → transit → reviews → dorm size._\n`);
-  out.push('| # | Hostel | Site | Price/night (JPY / INR) | Room type & beds | Reach ref hotel (walk / metro) | Nearest metro (walk from hostel) | Score | Reviews | Link |');
-  out.push('|--:|--------|:----:|-------------------------|------------------|--------------------------------|----------------------------------|:-----:|--------:|------|');
+  const friendsCol = rs ? `${rs.name} · 🚶 ~${rs.walk} min` : '—';
+  out.push('| # | Hostel | Site | Price/night (JPY / INR) | Room type & beds | Reach friends\' hotel (walk / metro) | Hostel\'s nearest metro (walk) | Friends\' station (walk to their hotel) | Score | Reviews | Link |');
+  out.push('|--:|--------|:----:|-------------------------|------------------|-------------------------------------|------------------------------|---------------------------------------|:-----:|--------:|------|');
   ranked.forEach((h, i) => {
-    out.push(`| ${i + 1} | **${h.name}** | ${h.site} | ${yen(h.priceJPY)} / ${rup(inr(h.priceJPY))} | ${bedsCell(h)} | ${distCell(h)} | ${stnCell(h)} | ${h.score ?? '—'} | ${revCell(h)} | ${linkCell(h)} |`);
+    out.push(`| ${i + 1} | **${h.name}** | ${h.site} | ${yen(h.priceJPY)} / ${rup(inr(h.priceJPY))} | ${bedsCell(h)} | ${distCell(h, rs)} | ${stnCell(h)} | ${friendsCol} | ${h.score ?? '—'} | ${revCell(h)} | ${linkCell(h)} |`);
   });
   out.push('');
 
   out.push(`### Top 3 picks — ${m.name}`);
   ranked.slice(0, 3).forEach((h, i) => {
-    out.push(`${i + 1}. **${h.name}** (${h.site}, ${yen(h.priceJPY)}/night ≈ ${rup(inr(h.priceJPY))}). ${rationale(h)}`);
+    out.push(`${i + 1}. **${h.name}** (${h.site}, ${yen(h.priceJPY)}/night ≈ ${rup(inr(h.priceJPY))}). ${rationale(h, rs)}`);
   });
   out.push('');
 

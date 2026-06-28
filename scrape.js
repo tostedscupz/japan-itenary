@@ -331,7 +331,8 @@ function fmtCity(city, picks, excluded, budgetJPY) {
     toEnrich.forEach(h => h._rank = rankScore(h, budgetJPY));
     toEnrich.sort((a, b) => b._rank - a._rank);
 
-    report.cities[key] = { all, within: toEnrich, over: over.slice(0, 6) };
+    const refStation = await nearestStation(city.ref.lat, city.ref.lon); // friends' hotel's station
+    report.cities[key] = { all, within: toEnrich, over: over.slice(0, 6), refStation };
     fs.writeFileSync(path.join(OUT_DIR, 'raw.json'), JSON.stringify(report, null, 1));
     console.log('  done; top:', toEnrich.slice(0, 3).map(h => h.name).join(' | '));
   }
