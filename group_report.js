@@ -18,16 +18,25 @@ const META = {
   kyoto: { name: 'Kyoto', dates: '26–29 Sep 2026', nights: 3, ref: 'APA Hotel Kyoto Eki Horikawadori' },
   osaka: { name: 'Osaka', dates: '24–27 Sep 2026', nights: 3, ref: 'APA Hotel Osaka Higobashi Ekimae' },
 };
-const distCell = r => r.refKm == null ? '—' : (r.refKm <= 1.5 ? `${r.refKm.toFixed(1)} km · 🚶~${r.refWalk}m *(walk)*` : `${r.refKm.toFixed(1)} km · 🚇~${(r.station ? r.station.walk : 5) + Math.max(2, Math.round(r.refKm / 0.5)) + 5 + (g.cities[r._ck].refStation ? g.cities[r._ck].refStation.walk : 4)}m`);
+function metroEst(r, refStation) {
+  if (r.refKm == null) return null;
+  const access = r.station ? r.station.walk : 5;            // walk to hostel's station
+  const ride = Math.max(2, Math.round(r.refKm / 0.5));       // ~30 km/h
+  const egress = refStation ? refStation.walk : 4;          // walk from friends' station to their hotel
+  return access + ride + 5 + egress;
+}
+const reachCell = (r, rs) => r.refKm == null ? '—' : (r.refKm <= 1.5 ? `${r.refKm.toFixed(1)} km · 🚶~${r.refWalk}m *(walkable)*` : `${r.refKm.toFixed(1)} km · 🚶~${r.refWalk}m / 🚇~${metroEst(r, rs)}m`);
 const stnCell = r => r.station ? `${r.station.name} · 🚶~${r.station.walk}m` : '—';
+const friendsCell = rs => rs ? `${rs.name} · 🚶~${rs.walk}m` : '—';
 const revCell = r => r.reviews == null ? (r.score != null ? `${r.score} (n/a)` : '—') : (r.reviews < 20 ? `${r.score} (${r.reviews} ⚠️)` : `${r.score} (${r.reviews.toLocaleString()})`);
 
-function rows(list, nights) {
+function rows(list, nights, rs) {
   const L = [];
-  L.push('| # | Hostel | Room for the 3 of you | Group ₹/night (¥) | Per person/night | Whole stay (' + nights + 'n) | Dist. from friends | Hostel metro (walk) | Score (rev) | Link |');
-  L.push('|--:|--------|-----------------------|-------------------|------------------|--------------------|--------------------|---------------------|-------------|------|');
+  L.push("| # | Hostel | Site | ≤5? | Room for the 3 of you | Group ₹/night (¥) | Per person/night | Whole stay (" + nights + "n) | Reach friends' hotel (walk / metro) | Hostel's metro (walk) | Friends' station (walk to their hotel) | Score (rev) | Link |");
+  L.push('|--:|--------|:----:|:---:|-----------------------|-------------------|------------------|--------------------|-------------------------------------|-----------------------|----------------------------------------|-------------|------|');
   list.forEach((r, i) => {
-    L.push(`| ${i + 1} | **${r.name}** | ${r.roomDesc} | ${rup(inr(r.groupCost))} (${yen(r.groupCost)}) | ${rup(inr(r.groupCost / g.people))} | ${rup(inr(r.groupCost * nights))} | ${distCell(r)} | ${stnCell(r)} | ${revCell(r)} | ${r.href ? `[Book](${r.href})` : '—'} |`);
+    const ok = r.verifiedMax5 ? '✅' : '⚠️';
+    L.push(`| ${i + 1} | **${r.name}** | Booking | ${ok} | ${r.roomDesc} | ${rup(inr(r.groupCost))} (${yen(r.groupCost)}) | ${rup(inr(r.groupCost / g.people))} | ${rup(inr(r.groupCost * nights))} | ${reachCell(r, rs)} | ${stnCell(r)} | ${friendsCell(rs)} | ${revCell(r)} | ${r.href ? `[Book](${r.href})` : '—'} |`);
   });
   return L;
 }
@@ -40,6 +49,10 @@ out.push('> **About the 3–5 cap:** Booking reliably labels **private room capa
 out.push('> - **Tier A ✅ — verified 3–5:** private rooms (just the 3 of you) or a dorm whose size Booking actually states. These satisfy your *max-5* rule.');
 out.push('> - **Tier B ⚠️ — 3 dorm beds, size not published:** cheapest way for 3 to share one dorm, but Booking didn\'t state the dorm size, so I can\'t confirm it\'s ≤5 (it may be a 6/8/10-bed dorm). Listed so you have options; verify size on the booking page.\n');
 out.push('> ⚠️ **Date overlap still open:** Osaka (24–27 Sep) and Kyoto (26–29 Sep) overlap on 26–27 Sep.\n');
+out.push('**Legend of symbols:**');
+out.push('- **≤5? column** — ✅ = verified the room is sized 3–5 (a private Triple/Quad/Quint/Family room, or a dorm whose bed-count Booking states). ⚠️ = it\'s 3 dorm beds but Booking didn\'t publish the dorm size, so I can\'t confirm ≤5.');
+out.push('- **⚠️ next to a review count** (e.g. `7.8 (14 ⚠️)`) — fewer than 20 reviews, so treat the score with caution.');
+out.push('- **🚶 = on foot · 🚇 = rough door-to-door metro estimate** (walk to the hostel\'s station + ride + walk from your friends\' station to their hotel).\n');
 out.push('---\n');
 
 for (const key of ['tokyo', 'kyoto', 'osaka']) {
@@ -52,12 +65,12 @@ for (const key of ['tokyo', 'kyoto', 'osaka']) {
   out.push(`**Friends' hotel:** ${m.ref}${rs ? ` · nearest station **${rs.name}** (~${rs.walk} min walk)` : ''} · **Budget:** ≤ ₹8,000/night for the group\n`);
 
   out.push(`### Tier A ✅ — verified 3–5 rooms (${A.length})`);
-  if (A.length) out.push(...rows(A, m.nights)); else out.push('_None within ₹8,000/night._');
+  if (A.length) out.push(...rows(A, m.nights, rs)); else out.push('_None within ₹8,000/night._');
   out.push('');
 
   const fill = Math.max(0, 15 - A.length);
   out.push(`### Tier B ⚠️ — 3 beds in one dorm, size not published (top ${Math.min(fill, B.length)} of ${B.length})`);
-  if (B.length && fill) out.push(...rows(B.slice(0, fill), m.nights)); else out.push('_—_');
+  if (B.length && fill) out.push(...rows(B.slice(0, fill), m.nights, rs)); else out.push('_—_');
   out.push('\n---\n');
 }
 
