@@ -33,6 +33,19 @@ node report.js                 # raw.json -> japan_hostel_recommendations.md
   which `scrape.js` uses automatically when present (no `playwright install`
   needed). On your own machine run `npx playwright install chromium` instead.
 
+### Broad Tokyo search (all sites, any accommodation type)
+
+`tokyo_broad.js` + `tokyo_broad_report.js` produce **`tokyo_accommodation_broad.md`**:
+affordable (₹2,500–3,500/person/night), decently-rated (≥8/10) Tokyo accommodation
+of any type, near the reference hotel, refreshed to the run date. Sources: booking.com
+(all property types), hostelworld.com, trip.com. Expedia bot-blocks; Agoda/Rakuten need
+an interactive flow; Kayak/Google Hotels are metasearch; Airbnb is a different category.
+
+```bash
+node tokyo_broad.js           # -> output/tokyo_broad.json
+node tokyo_broad_report.js    # -> tokyo_accommodation_broad.md
+```
+
 ### Group-room search (3 people, one booking)
 
 `group_scrape.js` + `group_report.js` produce **`group_room_recommendations.md`**:
